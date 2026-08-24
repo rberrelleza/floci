@@ -19,6 +19,14 @@ floci:
   base-url: "http://localhost:4566"
   default-region: us-east-1
   default-account-id: "000000000000"
+  kubernetes:
+    # namespace: ""                         # FLOCI_KUBERNETES_NAMESPACE; blank = pod namespace, then default
+    # storage-class: ""                     # FLOCI_KUBERNETES_STORAGE_CLASS; blank = cluster default
+    # default-storage-size: 5Gi              # FLOCI_KUBERNETES_DEFAULT_STORAGE_SIZE
+    # labels:                               # FLOCI_KUBERNETES_LABELS=key=value,key2=value2
+    #   - team=platform
+    # image-pull-policy: IfNotPresent         # FLOCI_KUBERNETES_IMAGE_PULL_POLICY
+    # startup-timeout-seconds: 300            # FLOCI_KUBERNETES_STARTUP_TIMEOUT_SECONDS
   storage:
     mode: memory
     persistent-path: ./target/test-data
@@ -146,6 +154,7 @@ floci:
       mock: true
     elasticache:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_ELASTICACHE_EXECUTOR
       proxy-base-port: 6379
       proxy-max-port: 6399
       default-image: "valkey/valkey:8"
@@ -158,6 +167,7 @@ floci:
       default-image: "valkey/valkey:8"
     rds:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_RDS_EXECUTOR
       mock: false
       proxy-base-port: 7001
       proxy-max-port: 7099
@@ -219,6 +229,7 @@ floci:
       enabled: true
     opensearch:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_OPENSEARCH_EXECUTOR
       mock: true
       proxy-base-port: 9400
       proxy-max-port: 9499

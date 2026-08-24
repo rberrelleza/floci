@@ -1,0 +1,230 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: floci
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: floci
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: floci
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: floci
+subjects:
+  - kind: ServiceAccount
+    name: floci
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: floci
+spec:
+  selector:
+    app.kubernetes.io/name: floci
+  ports:
+    - name: http
+      port: 4566
+      targetPort: http
+    - name: ec-6379
+      port: 6379
+      targetPort: ec-6379
+    - name: ec-6380
+      port: 6380
+      targetPort: ec-6380
+    - name: ec-6381
+      port: 6381
+      targetPort: ec-6381
+    - name: ec-6382
+      port: 6382
+      targetPort: ec-6382
+    - name: ec-6383
+      port: 6383
+      targetPort: ec-6383
+    - name: rds-7001
+      port: 7001
+      targetPort: rds-7001
+    - name: rds-7002
+      port: 7002
+      targetPort: rds-7002
+    - name: rds-7003
+      port: 7003
+      targetPort: rds-7003
+    - name: rds-7004
+      port: 7004
+      targetPort: rds-7004
+    - name: rds-7005
+      port: 7005
+      targetPort: rds-7005
+    - name: opensearch-9400
+      port: 9400
+      targetPort: opensearch-9400
+    - name: opensearch-9401
+      port: 9401
+      targetPort: opensearch-9401
+    - name: opensearch-9402
+      port: 9402
+      targetPort: opensearch-9402
+    - name: opensearch-9403
+      port: 9403
+      targetPort: opensearch-9403
+    - name: opensearch-9404
+      port: 9404
+      targetPort: opensearch-9404
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: floci
+  labels:
+    app.kubernetes.io/name: floci
+spec:
+  serviceName: floci
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: floci
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: floci
+    spec:
+      serviceAccountName: floci
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: floci
+          image: floci/floci:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4566
+            - name: ec-6379
+              containerPort: 6379
+            - name: ec-6380
+              containerPort: 6380
+            - name: ec-6381
+              containerPort: 6381
+            - name: ec-6382
+              containerPort: 6382
+            - name: ec-6383
+              containerPort: 6383
+            - name: rds-7001
+              containerPort: 7001
+            - name: rds-7002
+              containerPort: 7002
+            - name: rds-7003
+              containerPort: 7003
+            - name: rds-7004
+              containerPort: 7004
+            - name: rds-7005
+              containerPort: 7005
+            - name: opensearch-9400
+              containerPort: 9400
+            - name: opensearch-9401
+              containerPort: 9401
+            - name: opensearch-9402
+              containerPort: 9402
+            - name: opensearch-9403
+              containerPort: 9403
+            - name: opensearch-9404
+              containerPort: 9404
+          env:
+            - name: FLOCI_HOSTNAME
+              value: floci
+            - name: FLOCI_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: FLOCI_STORAGE_MODE
+              value: persistent
+            - name: FLOCI_STORAGE_PERSISTENT_PATH
+              value: /app/data
+            - name: FLOCI_SERVICES_LAMBDA_EXECUTOR
+              value: kubernetes
+            - name: FLOCI_SERVICES_RDS_EXECUTOR
+              value: kubernetes
+            - name: FLOCI_SERVICES_ELASTICACHE_EXECUTOR
+              value: kubernetes
+            - name: FLOCI_SERVICES_OPENSEARCH_EXECUTOR
+              value: kubernetes
+            - name: FLOCI_SERVICES_ELASTICACHE_PROXY_BASE_PORT
+              value: "6379"
+            - name: FLOCI_SERVICES_ELASTICACHE_PROXY_MAX_PORT
+              value: "6383"
+            - name: FLOCI_SERVICES_RDS_PROXY_BASE_PORT
+              value: "7001"
+            - name: FLOCI_SERVICES_RDS_PROXY_MAX_PORT
+              value: "7005"
+            - name: FLOCI_SERVICES_RDS_ENDPOINT_HOST
+              value: floci
+            - name: FLOCI_SERVICES_OPENSEARCH_PROXY_BASE_PORT
+              value: "9400"
+            - name: FLOCI_SERVICES_OPENSEARCH_PROXY_MAX_PORT
+              value: "9404"
+          startupProbe:
+            httpGet:
+              path: /_floci/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /_floci/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /_floci/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

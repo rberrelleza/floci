@@ -1,7 +1,6 @@
 package io.github.hectorvent.floci.services.lambda.launcher.kubernetes;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -10,6 +9,7 @@ import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.core.common.AwsArnUtils;
 import io.github.hectorvent.floci.core.common.AwsException;
 import io.github.hectorvent.floci.core.common.docker.LaunchedContainerAwsEnv;
+import io.github.hectorvent.floci.core.common.kubernetes.KubernetesPodReadiness;
 import io.github.hectorvent.floci.services.lambda.LambdaLayerService;
 import io.github.hectorvent.floci.services.lambda.LambdaService;
 import io.github.hectorvent.floci.services.lambda.launcher.ContainerHandle;
@@ -78,10 +78,6 @@ public class KubernetesPodLauncher implements LambdaRuntimeLauncher {
      * deliberately absent: it appears on the first failed pull attempt, which the
      * kubelet retries; only the backoff state marks repeated failures.
      */
-    private static final Set<String> TERMINAL_WAITING_REASONS = Set.of(
-            "ImagePullBackOff", "InvalidImageName", "CrashLoopBackOff",
-            "CreateContainerError", "CreateContainerConfigError", "RunContainerError");
-
     private final KubernetesClient client;
     private final EmulatorConfig config;
     private final RuntimeApiServerFactory runtimeApiServerFactory;
@@ -453,73 +449,23 @@ public class KubernetesPodLauncher implements LambdaRuntimeLauncher {
     }
 
     private static boolean isRunning(Pod pod) {
-        return "Running".equals(pod.getStatus().getPhase());
+        return KubernetesPodReadiness.isRunning(pod);
     }
 
     private static boolean hasTerminalFailure(Pod pod) {
-        var phase = pod.getStatus().getPhase();
-        // Succeeded means the runtime exited before serving — terminal for a server pod.
-        if ("Failed".equals(phase) || "Succeeded".equals(phase)) {
-            return true;
-        }
-        return unschedulableReason(pod) != null || describeTerminalReason(pod) != null;
+        return KubernetesPodReadiness.hasTerminalFailure(pod);
     }
 
     private static String unschedulableReason(Pod pod) {
-        if (pod.getStatus().getConditions() == null) {
-            return null;
-        }
-        for (var condition : pod.getStatus().getConditions()) {
-            // A pod the scheduler cannot place — e.g. a memory request above every node's
-            // capacity — stays Pending with no container statuses; fail the cold start
-            // instead of blocking the invoker for the full startup timeout.
-            if ("PodScheduled".equals(condition.getType()) && "False".equals(condition.getStatus())
-                    && "Unschedulable".equals(condition.getReason())) {
-                return "Unschedulable: " + condition.getMessage();
-            }
-        }
-        return null;
+        return KubernetesPodReadiness.unschedulableReason(pod);
     }
 
     private static String describeTerminalReason(Pod pod) {
-        var statuses = new ArrayList<ContainerStatus>();
-        if (pod.getStatus().getInitContainerStatuses() != null) {
-            statuses.addAll(pod.getStatus().getInitContainerStatuses());
-        }
-        if (pod.getStatus().getContainerStatuses() != null) {
-            statuses.addAll(pod.getStatus().getContainerStatuses());
-        }
-        for (var status : statuses) {
-            if (status.getState() == null) {
-                continue;
-            }
-            var waiting = status.getState().getWaiting();
-            // getReason() is null while a reason is absent; Set.of(...).contains(null)
-            // throws, which would abort an otherwise healthy cold start.
-            if (waiting != null && waiting.getReason() != null
-                    && TERMINAL_WAITING_REASONS.contains(waiting.getReason())) {
-                return status.getName() + ": " + waiting.getReason()
-                        + " (" + waiting.getMessage() + ")";
-            }
-            if (status.getState().getTerminated() != null
-                    && status.getState().getTerminated().getExitCode() != null
-                    && status.getState().getTerminated().getExitCode() != 0) {
-                return status.getName() + ": exited with code "
-                        + status.getState().getTerminated().getExitCode();
-            }
-        }
-        return null;
+        return KubernetesPodReadiness.describeTerminalReason(pod);
     }
 
     private static String describeFailure(Pod pod) {
-        if (pod == null || pod.getStatus() == null) {
-            return "pod no longer exists";
-        }
-        var reason = describeTerminalReason(pod);
-        if (reason == null) {
-            reason = unschedulableReason(pod);
-        }
-        return reason != null ? reason : "phase=" + pod.getStatus().getPhase();
+        return KubernetesPodReadiness.describeFailure(pod);
     }
 
     /**

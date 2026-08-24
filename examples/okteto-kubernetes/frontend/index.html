@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Floci Kubernetes Demo</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #f3f6fa; color: #17202a; }
+    main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #203864; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .card { background: white; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px #1d355720; }
+    .postgres { border-top: 5px solid #336791; }
+    .valkey { border-top: 5px solid #d82c20; }
+    .search { border-top: 5px solid #f0a500; }
+    input, button { font: inherit; padding: .55rem; margin: .25rem 0; }
+    input { width: min(100%, 28rem); box-sizing: border-box; }
+    button { cursor: pointer; background: #203864; color: white; border: 0; border-radius: 4px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    #status { background: #e8f1fb; padding: .75rem; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Floci on Kubernetes</h1>
+  <p>This small app writes through PostgreSQL, Valkey, and OpenSearch provisioned by Floci.</p>
+  <div id="status">Checking service health…</div>
+  <section class="grid">
+    <div class="card postgres">
+      <h2>PostgreSQL</h2>
+      <p>Add an item; the durable row is written here.</p>
+      <input id="item" placeholder="An item to store">
+      <button onclick="addItem()">Add item</button>
+      <pre id="add-result"></pre>
+    </div>
+    <div class="card valkey">
+      <h2>Valkey</h2>
+      <p>List items and observe the cache-hit indicator.</p>
+      <button onclick="listItems()">List items</button>
+      <pre id="items"></pre>
+    </div>
+    <div class="card search">
+      <h2>OpenSearch</h2>
+      <p>Search the indexed item documents.</p>
+      <input id="query" placeholder="Search text">
+      <button onclick="searchItems()">Search</button>
+      <pre id="search-result"></pre>
+    </div>
+  </section>
+</main>
+<script>
+  async function api(path, options) {
+    const response = await fetch(path, options);
+    const body = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
+  async function refreshHealth() {
+    try {
+      const body = await api('/api/health');
+      document.querySelector('#status').textContent = JSON.stringify(body.services, null, 2);
+    } catch (error) {
+      document.querySelector('#status').textContent = error;
+    }
+  }
+  async function addItem() {
+    const value = document.querySelector('#item').value;
+    document.querySelector('#add-result').textContent =
+      JSON.stringify(await api('/api/items', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value})
+      }), null, 2);
+  }
+  async function listItems() {
+    document.querySelector('#items').textContent =
+      JSON.stringify(await api('/api/items'), null, 2);
+  }
+  async function searchItems() {
+    const query = encodeURIComponent(document.querySelector('#query').value);
+    document.querySelector('#search-result').textContent =
+      JSON.stringify(await api('/api/search?q=' + query), null, 2);
+  }
+  refreshHealth();
+</script>
+</body>
+</html>

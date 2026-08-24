@@ -121,7 +121,7 @@ class RdsServiceTest {
                 new InMemoryStorage<>(), new InMemoryStorage<>(),
                 new InMemoryStorage<>(), new InMemoryStorage<>(), new InMemoryStorage<>());
 
-        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("cont-id", "id", "localhost", 5432));
         when(ec2Service.resolveDefaultVpcId(any()))
                 .thenAnswer(invocation -> Ec2Service.defaultVpcId(invocation.getArgument(0)));
@@ -190,7 +190,7 @@ class RdsServiceTest {
         verify(containerManager).start(
                 eq("arn:aws:rds:us-east-1:123456789012:db:mydb"), eq("mydb"),
                 any(), any(), eq(DatabaseEngine.POSTGRES),
-                eq("postgres:18.1-alpine"), eq("admin"), eq("password"), eq("dbname"));
+                eq("postgres:18.1-alpine"), eq("admin"), eq("password"), eq("dbname"), eq(false));
     }
 
     @Test
@@ -203,7 +203,7 @@ class RdsServiceTest {
         verify(containerManager).start(
                 eq("arn:aws:rds:us-east-1:123456789012:cluster:cluster1"), eq("cluster1"),
                 any(), any(), eq(DatabaseEngine.POSTGRES),
-                eq("postgres:16.14-alpine3.23"), eq("admin"), eq("password"), eq("dbname"));
+                eq("postgres:16.14-alpine3.23"), eq("admin"), eq("password"), eq("dbname"), eq(false));
     }
 
     @Test
@@ -218,7 +218,7 @@ class RdsServiceTest {
                 eq("arn:aws:rds:us-east-1:123456789012:cluster:cluster1"), eq("cluster1"),
                 any(), any(), eq(DatabaseEngine.POSTGRES),
                 eq(EmulatorConfig.RdsServiceConfig.DEFAULT_POSTGRES_IMAGE),
-                eq("admin"), eq("password"), eq("dbname"));
+                eq("admin"), eq("password"), eq("dbname"), eq(false));
     }
 
     @Test
@@ -1106,7 +1106,7 @@ class RdsServiceTest {
         assertEquals(DbInstanceStatus.FAILED, failed.getStatus());
         assertEquals(instance.getContainerId(), failed.getContainerId());
         verify(containerManager, times(1)).start(
-                any(), any(), any(), any(), any(), any(), any(), any(), any());
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
         verify(proxyManager).stopProxy("rds-resource:" + instance.getDbInstanceArn());
     }
 
@@ -1705,7 +1705,7 @@ class RdsServiceTest {
         StorageBackend<String, DbParameterGroup> parameterGroups = new InMemoryStorage<>();
         StorageBackend<String, DbClusterParameterGroup> clusterParameterGroups = new InMemoryStorage<>();
 
-        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("initial-container", "mydb", "localhost", 5432));
 
         RdsService initialService = newService(containerManager, proxyManager,
@@ -1721,7 +1721,7 @@ class RdsServiceTest {
 
         RdsContainerManager restoredContainerManager = mock(RdsContainerManager.class);
         RdsProxyManager restoredProxyManager = mock(RdsProxyManager.class);
-        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("restored-container", "mydb", "127.0.0.1", 15432));
 
         RdsService restoredService = newService(restoredContainerManager, restoredProxyManager,
@@ -1742,7 +1742,7 @@ class RdsServiceTest {
                 eq(restored.getDbInstanceArn()), eq("mydb"),
                 eq(restored.getContainerStorageResourceId()),
                 eq(restored.getDockerVolumeName()), eq(DatabaseEngine.POSTGRES),
-                eq("postgres:16.3-alpine"), eq("admin"), eq("secret"), eq("app"));
+                eq("postgres:16.3-alpine"), eq("admin"), eq("secret"), eq("app"), eq(false));
         verify(restoredProxyManager).startProxy(
                 eq("rds-resource:" + restored.getDbInstanceArn()), eq(DatabaseEngine.POSTGRES),
                 eq(false), eq(persistedProxyPort), eq("127.0.0.1"), eq(15432),
@@ -1760,7 +1760,7 @@ class RdsServiceTest {
         StorageBackend<String, DbParameterGroup> parameterGroups = new InMemoryStorage<>();
         StorageBackend<String, DbClusterParameterGroup> clusterParameterGroups = new InMemoryStorage<>();
 
-        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("initial-cluster-container", "cluster1", "localhost", 5432));
 
         RdsService initialService = newService(containerManager, proxyManager,
@@ -1773,7 +1773,7 @@ class RdsServiceTest {
 
         RdsContainerManager restoredContainerManager = mock(RdsContainerManager.class);
         RdsProxyManager restoredProxyManager = mock(RdsProxyManager.class);
-        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("restored-cluster-container", "cluster1", "127.0.0.1", 15432));
 
         RdsService restoredService = newService(restoredContainerManager, restoredProxyManager,
@@ -1795,7 +1795,7 @@ class RdsServiceTest {
                 eq(restoredCluster.getDbClusterArn()), eq("cluster1"),
                 eq(restoredCluster.getContainerStorageResourceId()),
                 eq(restoredCluster.getDockerVolumeName()), eq(DatabaseEngine.POSTGRES),
-                eq("postgres:16.3-alpine"), eq("admin"), eq("secret"), eq("app"));
+                eq("postgres:16.3-alpine"), eq("admin"), eq("secret"), eq("app"), eq(false));
         verify(restoredProxyManager).startProxy(
                 eq("rds-resource:" + restoredCluster.getDbClusterArn()), eq(DatabaseEngine.POSTGRES),
                 eq(false), eq(cluster.getProxyPort()), eq("127.0.0.1"), eq(15432),
@@ -1819,7 +1819,7 @@ class RdsServiceTest {
                 "replacement-container", "arn:aws:rds:us-east-1:123456789012:db:replacement",
                 "replacement", "127.0.0.1", 15433);
         when(restoredContainerManager.start(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(restoredHandle, replacementHandle);
         org.mockito.Mockito.doThrow(new IllegalStateException("relay failed"))
                 .doNothing()
@@ -1879,7 +1879,7 @@ class RdsServiceTest {
         instances.put("broken", persisted);
         RdsContainerManager restoredContainerManager = mock(RdsContainerManager.class);
         when(restoredContainerManager.start(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenThrow(new IllegalStateException("Docker start failed"));
         RdsService restoredService = newService(
                 restoredContainerManager, mock(RdsProxyManager.class), instances,
@@ -1945,7 +1945,7 @@ class RdsServiceTest {
                 "replacement-container", "arn:aws:rds:us-east-1:123456789012:cluster:replacement",
                 "replacement", "127.0.0.1", 15433);
         when(restoredContainerManager.start(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(restoredHandle, replacementHandle);
         org.mockito.Mockito.doThrow(new IllegalStateException("relay failed"))
                 .doNothing()
@@ -3986,7 +3986,7 @@ class RdsServiceTest {
         StorageBackend<String, DbProxy> proxies = new InMemoryStorage<>();
         StorageBackend<String, DbProxyTargetGroup> proxyTargetGroups = new InMemoryStorage<>();
 
-        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(containerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("initial-container", "cluster1", "localhost", 5432));
 
         RdsService initialService = new RdsService(containerManager, proxyManager, ec2Service,
@@ -4000,7 +4000,7 @@ class RdsServiceTest {
 
         RdsContainerManager restoredContainerManager = mock(RdsContainerManager.class);
         RdsProxyManager restoredProxyManager = mock(RdsProxyManager.class);
-        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("restored-container", "cluster1", "127.0.0.1", 15432));
 
         RdsService restoredService = new RdsService(restoredContainerManager, restoredProxyManager, ec2Service,
@@ -4064,7 +4064,7 @@ class RdsServiceTest {
 
         RdsContainerManager restoredContainerManager = mock(RdsContainerManager.class);
         RdsProxyManager restoredProxyManager = mock(RdsProxyManager.class);
-        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(restoredContainerManager.start(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new RdsContainerHandle("restored-container", "cluster1",
                         "127.0.0.1", 15432));
 

@@ -84,6 +84,30 @@ See [Storage Modes](./storage.md) for a full explanation of each mode.
 
 ---
 
+## Kubernetes
+
+| Variable | Default | Description |
+|---|---|---|
+| `FLOCI_KUBERNETES_NAMESPACE` | pod namespace, then `default` | Namespace for Floci-managed Kubernetes workloads |
+| `FLOCI_KUBERNETES_STORAGE_CLASS` | _(cluster default)_ | Storage class for managed workload PVCs |
+| `FLOCI_KUBERNETES_DEFAULT_STORAGE_SIZE` | `5Gi` | Default size for a managed workload PVC |
+| `FLOCI_KUBERNETES_LABELS` | _(none)_ | Comma-separated `key=value` labels applied to managed objects |
+| `FLOCI_KUBERNETES_IMAGE_PULL_POLICY` | `IfNotPresent` | Image pull policy for managed workload containers |
+| `FLOCI_KUBERNETES_STARTUP_TIMEOUT_SECONDS` | `300` | Readiness timeout for blocking Kubernetes workload launches |
+
+The RDS, ElastiCache, and OpenSearch executors accept `docker` (default) or
+`kubernetes`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `FLOCI_SERVICES_RDS_EXECUTOR` | `docker` | RDS container backend |
+| `FLOCI_SERVICES_ELASTICACHE_EXECUTOR` | `docker` | ElastiCache container backend |
+| `FLOCI_SERVICES_OPENSEARCH_EXECUTOR` | `docker` | OpenSearch container backend |
+
+See [Kubernetes](./kubernetes.md) for workload, PVC, adoption, and RBAC details.
+
+---
+
 ## Docker Daemon
 
 | Variable | Default | Description |

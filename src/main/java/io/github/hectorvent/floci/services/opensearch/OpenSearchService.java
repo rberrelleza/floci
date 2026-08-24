@@ -40,12 +40,12 @@ public class OpenSearchService {
     private final StorageBackend<String, Domain> domainStore;
     private final EmulatorConfig config;
     private final RegionResolver regionResolver;
-    private final OpenSearchDomainManager domainManager;
+    private final OpenSearchRuntime domainManager;
     private final ScheduledExecutorService poller = Executors.newSingleThreadScheduledExecutor();
 
     @Inject
     public OpenSearchService(StorageFactory storageFactory, EmulatorConfig config,
-                             RegionResolver regionResolver, OpenSearchDomainManager domainManager) {
+                             RegionResolver regionResolver, OpenSearchRuntime domainManager) {
         this.domainStore = storageFactory.create("opensearch", "opensearch-domains.json",
                 new TypeReference<Map<String, Domain>>() {});
         this.config = config;
@@ -54,7 +54,7 @@ public class OpenSearchService {
     }
 
     OpenSearchService(StorageBackend<String, Domain> domainStore, EmulatorConfig config,
-                      RegionResolver regionResolver, OpenSearchDomainManager domainManager) {
+                      RegionResolver regionResolver, OpenSearchRuntime domainManager) {
         this.domainStore = domainStore;
         this.config = config;
         this.regionResolver = regionResolver;
@@ -68,12 +68,35 @@ public class OpenSearchService {
         }
     }
 
+    public void restorePersistedRuntime() {
+        if (config.services().opensearch().mock()
+                || !"kubernetes".equalsIgnoreCase(config.services().opensearch().executor())) {
+            return;
+        }
+        for (Domain domain : allDomains()) {
+            if (domain.isDeleted()) {
+                continue;
+            }
+            try {
+                domainManager.startDomain(domain);
+                domain.setProcessing(true);
+                putDomain(domain);
+            } catch (RuntimeException exception) {
+                LOG.warnv(exception, "Failed to restore OpenSearch domain {0}", domain.getDomainName());
+            }
+        }
+    }
+
     @PreDestroy
     public void shutdown() {
         poller.shutdownNow();
         if (!config.services().opensearch().mock()) {
-            for (Domain domain : allDomains()) {
-                domainManager.stopDomain(domain);
+            if ("kubernetes".equalsIgnoreCase(config.services().opensearch().executor())) {
+                domainManager.stopAll();
+            } else {
+                for (Domain domain : allDomains()) {
+                    domainManager.stopDomain(domain);
+                }
             }
         }
     }

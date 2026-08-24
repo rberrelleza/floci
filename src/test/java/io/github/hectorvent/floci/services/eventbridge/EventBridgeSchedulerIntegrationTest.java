@@ -321,6 +321,8 @@ class EventBridgeSchedulerIntegrationTest {
             @Override
             public DockerConfig docker() { return null; }
             @Override
+            public KubernetesConfig kubernetes() { return null; }
+            @Override
             public EmulatorConfig.InitHooksConfig initHooks() { return null; }
             @Override
             public ProtocolsConfig protocols() {

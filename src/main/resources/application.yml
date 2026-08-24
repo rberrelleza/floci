@@ -83,6 +83,14 @@ floci:
                    # Needed for multi-container Docker setups. Example: FLOCI_HOSTNAME=floci
   default-region: us-east-1
   default-account-id: "000000000000"
+  kubernetes:
+    # namespace: ""                         # FLOCI_KUBERNETES_NAMESPACE; blank = pod namespace, then default
+    # storage-class: ""                     # FLOCI_KUBERNETES_STORAGE_CLASS; blank = cluster default
+    # default-storage-size: 5Gi              # FLOCI_KUBERNETES_DEFAULT_STORAGE_SIZE
+    # labels:                               # FLOCI_KUBERNETES_LABELS=key=value,key2=value2
+    #   - team=platform
+    # image-pull-policy: IfNotPresent         # FLOCI_KUBERNETES_IMAGE_PULL_POLICY
+    # startup-timeout-seconds: 300            # FLOCI_KUBERNETES_STARTUP_TIMEOUT_SECONDS
   storage:
     # Supported modes: memory, persistent, hybrid, wal
     mode: memory
@@ -291,6 +299,7 @@ floci:
       # default-image: "apache/flink:1.18"
     elasticache:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_ELASTICACHE_EXECUTOR
       proxy-base-port: 6379
       proxy-max-port: 6399
       default-image: "valkey/valkey:8"
@@ -303,6 +312,7 @@ floci:
       default-image: "valkey/valkey:8"
     rds:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_RDS_EXECUTOR
       mock: false                                 # FLOCI_SERVICES_RDS_MOCK — true = metadata only, no Docker (useful for CI)
       proxy-base-port: 7001
       proxy-max-port: 7099
@@ -380,6 +390,7 @@ floci:
       # smtp-starttls: DISABLED     # DISABLED, OPTIONAL, or REQUIRED
     opensearch:
       enabled: true
+      # executor: docker                       # FLOCI_SERVICES_OPENSEARCH_EXECUTOR
       mock: false
       # default-image: optional override; uncomment to lock every domain to a
       # single image (e.g. private registry mirror). When unset, the image is

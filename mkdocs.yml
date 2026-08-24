@@ -67,6 +67,7 @@ nav:
     - Docker Compose: configuration/docker-compose.md
     - Docker Configuration: configuration/docker.md
     - Ports Reference: configuration/ports.md
+    - Kubernetes: configuration/kubernetes.md
     - Multi-Account Isolation: configuration/multi-account.md
     - Storage Modes: configuration/storage.md
     - TLS / HTTPS: configuration/tls.md

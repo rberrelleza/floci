@@ -17,7 +17,7 @@ import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.services.ec2.Ec2Service;
 import io.github.hectorvent.floci.services.ec2.model.Subnet;
 import io.github.hectorvent.floci.services.rds.container.RdsContainerHandle;
-import io.github.hectorvent.floci.services.rds.container.RdsContainerManager;
+import io.github.hectorvent.floci.services.rds.container.RdsContainerRuntime;
 import io.github.hectorvent.floci.services.rds.model.DatabaseEngine;
 import io.github.hectorvent.floci.services.rds.model.DbCluster;
 import io.github.hectorvent.floci.services.rds.model.DbClusterParameterGroup;
@@ -124,7 +124,7 @@ public class RdsService implements Resettable {
     private final StorageBackend<String, DbSubnetGroup> subnetGroups;
     private final StorageBackend<String, DbProxy> proxies;
     private final StorageBackend<String, DbProxyTargetGroup> proxyTargetGroups;
-    private final RdsContainerManager containerManager;
+    private final RdsContainerRuntime containerManager;
     private final RdsProxyManager proxyManager;
     private final Ec2Service ec2Service;
     private final RegionResolver regionResolver;
@@ -155,7 +155,7 @@ public class RdsService implements Resettable {
             "POSTGRES_SCRAM_SHA_256", "POSTGRES_MD5", "SQL_SERVER_AUTHENTICATION");
 
     @Inject
-    public RdsService(RdsContainerManager containerManager,
+    public RdsService(RdsContainerRuntime containerManager,
                       RdsProxyManager proxyManager,
                       Ec2Service ec2Service,
                       RegionResolver regionResolver,
@@ -190,7 +190,7 @@ public class RdsService implements Resettable {
                 new TypeReference<Map<String, DbProxyTargetGroup>>() {});
     }
 
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -205,7 +205,7 @@ public class RdsService implements Resettable {
                 null, null, null);
     }
 
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -223,7 +223,7 @@ public class RdsService implements Resettable {
                 new InMemoryStorage<>(), new InMemoryStorage<>());
     }
 
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -243,7 +243,7 @@ public class RdsService implements Resettable {
     }
 
     // Test overload that also injects the DB-proxy stores (for restore-across-restart tests).
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -262,7 +262,7 @@ public class RdsService implements Resettable {
                 secretsManagerService, dockerHostResolver, null, proxies, proxyTargetGroups);
     }
 
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -283,7 +283,7 @@ public class RdsService implements Resettable {
                 proxies, proxyTargetGroups, new InMemoryStorage<>());
     }
 
-    RdsService(RdsContainerManager containerManager,
+    RdsService(RdsContainerRuntime containerManager,
                RdsProxyManager proxyManager,
                Ec2Service ec2Service,
                RegionResolver regionResolver,
@@ -533,7 +533,7 @@ public class RdsService implements Resettable {
                 RdsContainerHandle handle = containerManager.start(
                         dbInstanceArn, id, instanceStorageResourceId,
                         instanceDockerVolumeName, engine, image,
-                        masterUsername, masterPassword, dbName);
+                        masterUsername, masterPassword, dbName, iamEnabled);
                 backendHost = handle.getHost();
                 backendPort = handle.getPort();
                 containerId = handle.getContainerId();
@@ -1008,7 +1008,8 @@ public class RdsService implements Resettable {
                 RdsContainerHandle handle = containerManager.start(
                         instance.getDbInstanceArn(), id, storageResourceId,
                         dockerVolumeName, instance.getEngine(), image, instance.getMasterUsername(),
-                        instance.getMasterPassword(), instance.getDbName());
+                        instance.getMasterPassword(), instance.getDbName(),
+                        instance.isIamDatabaseAuthenticationEnabled());
                 instance.setContainerStorageResourceId(storageResourceId);
                 instance.setDockerVolumeName(dockerVolumeName);
                 instance.setContainerId(handle.getContainerId());
@@ -1177,7 +1178,7 @@ public class RdsService implements Resettable {
             RdsContainerHandle handle = containerManager.start(
                     clusterArn, id, clusterResourceId, clusterDockerVolumeName,
                     engine, image,
-                    masterUsername, masterPassword, databaseName);
+                    masterUsername, masterPassword, databaseName, iamEnabled);
             cluster.setContainerId(handle.getContainerId());
             cluster.setContainerHost(handle.getHost());
             cluster.setContainerPort(handle.getPort());
@@ -3745,7 +3746,8 @@ public class RdsService implements Resettable {
                 restoredHandle = containerManager.start(
                         cluster.getDbClusterArn(), cluster.getDbClusterIdentifier(),
                         storageResourceId, dockerVolumeName, cluster.getEngine(), image,
-                        cluster.getMasterUsername(), cluster.getMasterPassword(), cluster.getDatabaseName());
+                        cluster.getMasterUsername(), cluster.getMasterPassword(), cluster.getDatabaseName(),
+                        cluster.isIamDatabaseAuthenticationEnabled());
                 cluster.setContainerId(restoredHandle.getContainerId());
                 cluster.setContainerHost(restoredHandle.getHost());
                 cluster.setContainerPort(restoredHandle.getPort());
@@ -3863,7 +3865,8 @@ public class RdsService implements Resettable {
                             instance.getDbInstanceArn(), instance.getDbInstanceIdentifier(),
                             instance.getContainerStorageResourceId(),
                             instance.getDockerVolumeName(), instance.getEngine(), image,
-                            instance.getMasterUsername(), instance.getMasterPassword(), instance.getDbName());
+                            instance.getMasterUsername(), instance.getMasterPassword(), instance.getDbName(),
+                            instance.isIamDatabaseAuthenticationEnabled());
                     backendHost = restoredHandle.getHost();
                     backendPort = restoredHandle.getPort();
                     instance.setContainerId(restoredHandle.getContainerId());
