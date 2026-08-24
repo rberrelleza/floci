@@ -85,10 +85,26 @@ services:
 |---|---|---|
 | `FLOCI_SERVICES_OPENSEARCH_ENABLED` | `true` | Enable/disable the service |
 | `FLOCI_SERVICES_OPENSEARCH_MOCK` | `false` | `true` = metadata only (no Docker) |
+| `FLOCI_SERVICES_OPENSEARCH_EXECUTOR` | `docker` | Use `docker` or `kubernetes` for search workloads |
 | `FLOCI_SERVICES_OPENSEARCH_DEFAULT_IMAGE` | *(unset)* | Optional fixed image used for every domain regardless of `EngineVersion`. Useful for private registry mirrors. When unset, images resolve per-version from the built-in version map. |
 | `FLOCI_SERVICES_OPENSEARCH_PROXY_BASE_PORT` | `9400` | Port range start for real mode |
 | `FLOCI_SERVICES_OPENSEARCH_PROXY_MAX_PORT` | `9499` | Port range end for real mode |
 | `FLOCI_SERVICES_OPENSEARCH_KEEP_RUNNING_ON_SHUTDOWN` | `false` | Leave containers running after Floci stops |
+
+### Kubernetes executor
+
+Set `FLOCI_SERVICES_OPENSEARCH_EXECUTOR=kubernetes` to run each domain as a
+single-node StatefulSet with a headless Service and a PVC mounted at
+`/usr/share/opensearch/data` using `subPath=data`. The workload uses
+`discovery.type=single-node`, a bounded JVM heap, and a disabled security
+plugin; it needs no privileged sysctl bootstrap. Domain endpoints use the
+workload Service DNS name and port 9200.
+
+Kubernetes launch is asynchronous, matching the AWS domain-creation model. The
+existing `/_cluster/health` poller changes the domain from `processing` when the
+pod is ready. Kubernetes workloads remain running across a Floci shutdown and
+are adopted on restart, regardless of `keep-running-on-shutdown`; deleting
+the domain is the operation that removes its PVC.
 | `FLOCI_SERVICES_DOCKER_NETWORK` | *(unset)* | Shared Docker network for all container-based services including OpenSearch |
 | `FLOCI_STORAGE_SERVICES_OPENSEARCH_FLUSH_INTERVAL_MS` | `5000` | Flush interval (ms) |
 

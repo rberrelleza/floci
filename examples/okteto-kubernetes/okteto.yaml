@@ -1,0 +1,20 @@
+build:
+  floci:
+    context: ../..
+    dockerfile: docker/Dockerfile
+  backend:
+    context: backend
+    dockerfile: Dockerfile
+  frontend:
+    context: frontend
+    dockerfile: Dockerfile
+
+deploy:
+  context: ../..
+  remote: true
+  commands:
+    - sed "s|floci/floci:latest|$OKTETO_BUILD_FLOCI_IMAGE|g" deploy/kubernetes/floci.yaml | kubectl apply -f -
+    - sed -e "s|__BACKEND_IMAGE__|$OKTETO_BUILD_BACKEND_IMAGE|g" -e "s|__FRONTEND_IMAGE__|$OKTETO_BUILD_FRONTEND_IMAGE|g" examples/okteto-kubernetes/k8s/app.yaml | kubectl apply -f -
+    - kubectl rollout status statefulset/floci --timeout=15m
+    - kubectl rollout status deployment/demo-backend --timeout=15m
+    - kubectl rollout status deployment/demo-frontend --timeout=15m

@@ -7,7 +7,7 @@ import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerHandle;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerManager;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerRuntime;
 import io.github.hectorvent.floci.services.elasticache.model.AuthMode;
 import io.github.hectorvent.floci.services.elasticache.model.CacheParameterGroup;
 import io.github.hectorvent.floci.services.elasticache.model.CacheSubnetGroup;
@@ -46,7 +46,7 @@ public class ElastiCacheService {
     private final StorageBackend<String, ElastiCacheUser> users;
     private final StorageBackend<String, CacheParameterGroup> parameterGroups;
     private final StorageBackend<String, CacheSubnetGroup> subnetGroups;
-    private final ElastiCacheContainerManager containerManager;
+    private final ElastiCacheContainerRuntime containerManager;
     private final ElastiCacheProxyManager proxyManager;
     private final EmulatorConfig config;
     private final Ec2Service ec2Service;
@@ -56,7 +56,7 @@ public class ElastiCacheService {
     private final ConcurrentHashMap<String, Object> parameterGroupLocks = new ConcurrentHashMap<>();
 
     @Inject
-    public ElastiCacheService(ElastiCacheContainerManager containerManager,
+    public ElastiCacheService(ElastiCacheContainerRuntime containerManager,
                               ElastiCacheProxyManager proxyManager,
                               StorageFactory storageFactory,
                               EmulatorConfig config,
@@ -75,6 +75,29 @@ public class ElastiCacheService {
                 new TypeReference<Map<String, CacheParameterGroup>>() {});
         this.subnetGroups = storageFactory.create("elasticache", "elasticache-subnet-groups.json",
                 new TypeReference<Map<String, CacheSubnetGroup>>() {});
+    }
+
+    public void restorePersistedRuntime() {
+        if (!"kubernetes".equalsIgnoreCase(config.services().elasticache().executor())) {
+            return;
+        }
+        for (ReplicationGroup group : groups.scan(key -> true)) {
+            try {
+                var handle = containerManager.start(
+                        group.getReplicationGroupId(), config.services().elasticache().defaultImage());
+                group.setContainerId(handle.getContainerId());
+                group.setContainerHost(handle.getHost());
+                group.setContainerPort(handle.getPort());
+                proxyManager.startProxy(group.getReplicationGroupId(), group.getAuthMode(),
+                        group.getProxyPort(), handle.getHost(), handle.getPort(),
+                        (username, password) -> validatePassword(
+                                group.getReplicationGroupId(), username, password));
+                groups.put(group.getReplicationGroupId(), group);
+            } catch (RuntimeException exception) {
+                LOG.warnv(exception, "Failed to restore ElastiCache replication group {0}",
+                        group.getReplicationGroupId());
+            }
+        }
     }
 
     public ReplicationGroup createReplicationGroup(String groupId, String description,
@@ -180,6 +203,7 @@ public class ElastiCacheService {
             containerManager.stop(new ElastiCacheContainerHandle(
                     group.getContainerId(), groupId, group.getContainerHost(), group.getContainerPort()));
         }
+        containerManager.removeStorage(groupId);
 
         releaseProxyPort(group.getProxyPort());
         groups.delete(groupId);

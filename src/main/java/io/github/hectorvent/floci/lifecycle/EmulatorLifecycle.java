@@ -13,8 +13,10 @@ import io.github.hectorvent.floci.services.floci.ui.FlociUiManager;
 import io.github.hectorvent.floci.services.amazonmq.container.RabbitMqManager;
 import io.github.hectorvent.floci.services.kinesisanalytics.container.FlinkContainerManager;
 import io.github.hectorvent.floci.services.iam.IamService;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerManager;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedContainerManager;
+import io.github.hectorvent.floci.services.elasticache.ElastiCacheMemcachedService;
+import io.github.hectorvent.floci.services.elasticache.ElastiCacheService;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerRuntime;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedRuntime;
 import io.github.hectorvent.floci.services.elasticache.proxy.ElastiCacheProxyManager;
 import io.github.hectorvent.floci.services.docdb.container.DocDbContainerManager;
 import io.github.hectorvent.floci.services.lambda.DynamoDbStreamsEventSourcePoller;
@@ -28,8 +30,9 @@ import io.github.hectorvent.floci.services.elbv2.ElbV2Service;
 import io.github.hectorvent.floci.services.rds.RdsService;
 import io.github.hectorvent.floci.services.memorydb.container.MemoryDbContainerManager;
 import io.github.hectorvent.floci.services.memorydb.proxy.MemoryDbProxyManager;
-import io.github.hectorvent.floci.services.rds.container.RdsContainerManager;
+import io.github.hectorvent.floci.services.rds.container.RdsContainerRuntime;
 import io.github.hectorvent.floci.services.rds.proxy.RdsProxyManager;
+import io.github.hectorvent.floci.services.opensearch.OpenSearchService;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.ShutdownDelayInitiatedEvent;
 import io.quarkus.runtime.ShutdownEvent;
@@ -66,10 +69,10 @@ public class EmulatorLifecycle {
     private final ServiceRegistry serviceRegistry;
     private final EmulatorConfig config;
     private final IamService iamService;
-    private final ElastiCacheContainerManager elastiCacheContainerManager;
-    private final ElastiCacheMemcachedContainerManager elastiCacheMemcachedContainerManager;
+    private final ElastiCacheContainerRuntime elastiCacheContainerManager;
+    private final ElastiCacheMemcachedRuntime elastiCacheMemcachedContainerManager;
     private final ElastiCacheProxyManager elastiCacheProxyManager;
-    private final RdsContainerManager rdsContainerManager;
+    private final RdsContainerRuntime rdsContainerManager;
     private final RdsProxyManager rdsProxyManager;
     private final MemoryDbContainerManager memoryDbContainerManager;
     private final MemoryDbProxyManager memoryDbProxyManager;
@@ -79,6 +82,9 @@ public class EmulatorLifecycle {
     private final RabbitMqManager rabbitMqManager;
     private final FlinkContainerManager flinkContainerManager;
     private final RdsService rdsService;
+    private final ElastiCacheService elastiCacheService;
+    private final ElastiCacheMemcachedService elastiCacheMemcachedService;
+    private final OpenSearchService openSearchService;
     private final ElbV2Service elbV2Service;
     private final InitializationHooksRunner initializationHooksRunner;
     private final SqsEventSourcePoller sqsPoller;
@@ -97,10 +103,10 @@ public class EmulatorLifecycle {
     public EmulatorLifecycle(StorageFactory storageFactory, ServiceRegistry serviceRegistry,
                              EmulatorConfig config,
                              IamService iamService,
-                             ElastiCacheContainerManager elastiCacheContainerManager,
-                             ElastiCacheMemcachedContainerManager elastiCacheMemcachedContainerManager,
+                             ElastiCacheContainerRuntime elastiCacheContainerManager,
+                             ElastiCacheMemcachedRuntime elastiCacheMemcachedContainerManager,
                              ElastiCacheProxyManager elastiCacheProxyManager,
-                             RdsContainerManager rdsContainerManager,
+                             RdsContainerRuntime rdsContainerManager,
                              RdsProxyManager rdsProxyManager,
                              MemoryDbContainerManager memoryDbContainerManager,
                              MemoryDbProxyManager memoryDbProxyManager,
@@ -110,6 +116,9 @@ public class EmulatorLifecycle {
                              RabbitMqManager rabbitMqManager,
                              FlinkContainerManager flinkContainerManager,
                              RdsService rdsService,
+                             ElastiCacheService elastiCacheService,
+                             ElastiCacheMemcachedService elastiCacheMemcachedService,
+                             OpenSearchService openSearchService,
                              ElbV2Service elbV2Service,
                              InitializationHooksRunner initializationHooksRunner,
                              SqsEventSourcePoller sqsPoller,
@@ -140,6 +149,9 @@ public class EmulatorLifecycle {
         this.rabbitMqManager = rabbitMqManager;
         this.flinkContainerManager = flinkContainerManager;
         this.rdsService = rdsService;
+        this.elastiCacheService = elastiCacheService;
+        this.elastiCacheMemcachedService = elastiCacheMemcachedService;
+        this.openSearchService = openSearchService;
         this.elbV2Service = elbV2Service;
         this.initializationHooksRunner = initializationHooksRunner;
         this.sqsPoller = sqsPoller;
@@ -189,6 +201,9 @@ public class EmulatorLifecycle {
         dynamodbStreamsPoller.startPersistedPollers();
         pipesService.startPersistedPollers();
         rdsService.restorePersistedRuntime();
+        elastiCacheService.restorePersistedRuntime();
+        elastiCacheMemcachedService.restorePersistedRuntime();
+        openSearchService.restorePersistedRuntime();
         if (config.services().elbv2().enabled()) {
             elbV2Service.restorePersistedRuntime();
         }

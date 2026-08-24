@@ -57,9 +57,23 @@ AWS accepts. `DescribeCacheParameters` returns those parameters; a request for `
 | Variable | Default | Description |
 |---|---|---|
 | `FLOCI_SERVICES_ELASTICACHE_ENABLED` | `true` | Enable or disable the service |
+| `FLOCI_SERVICES_ELASTICACHE_EXECUTOR` | `docker` | Use `docker` or `kubernetes` for cache workloads |
 | `FLOCI_SERVICES_ELASTICACHE_PROXY_BASE_PORT` | `6379` | First host port in the ElastiCache proxy range |
 | `FLOCI_SERVICES_ELASTICACHE_PROXY_MAX_PORT` | `6399` | Last host port in the ElastiCache proxy range |
 | `FLOCI_SERVICES_ELASTICACHE_DEFAULT_IMAGE` | `valkey/valkey:8` | Docker image for Redis/Valkey containers |
+
+### Kubernetes executor
+
+Set `FLOCI_SERVICES_ELASTICACHE_EXECUTOR=kubernetes` to run Valkey/Redis
+replication groups as persistent StatefulSets with headless Services and PVCs.
+The workload uses append-only mode and mounts its PVC at `/data` with
+`subPath=data`; this persistence improvement is Kubernetes-only. Memcached
+uses a StatefulSet and Service but no PVC. Existing RESP `PING` and Memcached
+`VERSION` readiness checks remain in use.
+
+Kubernetes workloads stay running across a Floci shutdown and are adopted on
+restart. Explicit stops retain persistent PVCs; deleting the AWS resource
+removes its PVC. The Docker executor retains its existing no-volume behavior.
 
 ### Docker Compose
 

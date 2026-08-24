@@ -7,8 +7,10 @@ import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.lifecycle.InitLifecycleState;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHook;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHooksRunner;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerManager;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedContainerManager;
+import io.github.hectorvent.floci.services.elasticache.ElastiCacheMemcachedService;
+import io.github.hectorvent.floci.services.elasticache.ElastiCacheService;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerRuntime;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedRuntime;
 import io.github.hectorvent.floci.services.elasticache.proxy.ElastiCacheProxyManager;
 import io.github.hectorvent.floci.services.docdb.container.DocDbContainerManager;
 import io.github.hectorvent.floci.services.neptune.container.NeptuneContainerManager;
@@ -60,8 +62,8 @@ class EmulatorLifecycleTest {
     @Mock private EmulatorConfig.Ec2ServiceConfig ec2ServiceConfig;
     @Mock private EmulatorConfig.ElbV2ServiceConfig elbv2ServiceConfig;
     @Mock private IamService iamService;
-    @Mock private ElastiCacheContainerManager elastiCacheContainerManager;
-    @Mock private ElastiCacheMemcachedContainerManager elastiCacheMemcachedContainerManager;
+    @Mock private ElastiCacheContainerRuntime elastiCacheContainerManager;
+    @Mock private ElastiCacheMemcachedRuntime elastiCacheMemcachedContainerManager;
     @Mock private ElastiCacheProxyManager elastiCacheProxyManager;
     @Mock private RdsContainerManager rdsContainerManager;
     @Mock private RdsProxyManager rdsProxyManager;
@@ -73,6 +75,9 @@ class EmulatorLifecycleTest {
     @Mock private io.github.hectorvent.floci.services.amazonmq.container.RabbitMqManager rabbitMqManager;
     @Mock private io.github.hectorvent.floci.services.kinesisanalytics.container.FlinkContainerManager flinkContainerManager;
     @Mock private RdsService rdsService;
+    @Mock private ElastiCacheService elastiCacheService;
+    @Mock private ElastiCacheMemcachedService elastiCacheMemcachedService;
+    @Mock private io.github.hectorvent.floci.services.opensearch.OpenSearchService openSearchService;
     @Mock private io.github.hectorvent.floci.services.elbv2.ElbV2Service elbV2Service;
     @Mock private InitializationHooksRunner initializationHooksRunner;
     @Mock private SqsEventSourcePoller sqsPoller;
@@ -108,7 +113,8 @@ class EmulatorLifecycleTest {
                 elastiCacheProxyManager, rdsContainerManager, rdsProxyManager,
                 memoryDbContainerManager, memoryDbProxyManager,
                 docDbContainerManager, neptuneContainerManager, neptuneProxyManager,
-                rabbitMqManager, flinkContainerManager, rdsService, elbV2Service,
+                rabbitMqManager, flinkContainerManager, rdsService, elastiCacheService,
+                elastiCacheMemcachedService, openSearchService, elbV2Service,
                 initializationHooksRunner, sqsPoller, kinesisPoller, dynamodbStreamsPoller,
                 pipesService, ec2MetadataServer, ecrRegistryManager, flociUiManager, initLifecycleState,
                 schemaCreationWorker, containerTeardowns, persistentPathValidator);
@@ -132,12 +138,15 @@ class EmulatorLifecycleTest {
         emulatorLifecycle.onStart(Mockito.mock(StartupEvent.class));
 
         var inOrder = Mockito.inOrder(initializationHooksRunner, storageFactory, initLifecycleState,
-                iamService, rdsService);
+                iamService, rdsService, elastiCacheService, elastiCacheMemcachedService, openSearchService);
         inOrder.verify(initializationHooksRunner).run(InitializationHook.BOOT);
         inOrder.verify(initLifecycleState).markBootCompleted();
         inOrder.verify(storageFactory).loadAll();
         inOrder.verify(iamService).sweepOrphanedLambdaExecutionRoleSessions();
         inOrder.verify(rdsService).restorePersistedRuntime();
+        inOrder.verify(elastiCacheService).restorePersistedRuntime();
+        inOrder.verify(elastiCacheMemcachedService).restorePersistedRuntime();
+        inOrder.verify(openSearchService).restorePersistedRuntime();
     }
 
     @Test

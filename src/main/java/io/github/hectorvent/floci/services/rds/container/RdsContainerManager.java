@@ -16,6 +16,7 @@ import io.github.hectorvent.floci.core.common.docker.ContainerLogStreamer;
 import io.github.hectorvent.floci.core.common.docker.ContainerSpec;
 import io.github.hectorvent.floci.services.rds.model.DatabaseEngine;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -38,7 +39,8 @@ import java.util.regex.Pattern;
  * Starts postgres/mysql/mariadb containers and resolves the backend host:port for the auth proxy.
  */
 @ApplicationScoped
-public class RdsContainerManager {
+@Typed(RdsContainerManager.class)
+public class RdsContainerManager implements RdsContainerRuntime {
 
     private static final Logger LOG = Logger.getLogger(RdsContainerManager.class);
     private static final Pattern SAFE_STORAGE_COMPONENT = Pattern.compile("[A-Za-z0-9._-]+");
@@ -333,42 +335,7 @@ public class RdsContainerManager {
     }
 
     static String engineDefaultDataPath(DatabaseEngine engine, String image) {
-        return switch (engine) {
-            case POSTGRES -> postgresDataPath(image);
-            case MYSQL, MARIADB -> "/var/lib/mysql";
-        };
-    }
-
-    private static String postgresDataPath(String image) {
-        if (postgresImageMajorVersion(image) >= 18) {
-            return "/var/lib/postgresql";
-        }
-        return "/var/lib/postgresql/data";
-    }
-
-    private static int postgresImageMajorVersion(String image) {
-        if (image == null || image.isBlank()) {
-            return -1;
-        }
-        String reference = image;
-        int digestSeparator = reference.indexOf('@');
-        if (digestSeparator >= 0) {
-            reference = reference.substring(0, digestSeparator);
-        }
-        int slashSeparator = reference.lastIndexOf('/');
-        int tagSeparator = reference.lastIndexOf(':');
-        if (tagSeparator < slashSeparator || tagSeparator == reference.length() - 1) {
-            return -1;
-        }
-        String tag = reference.substring(tagSeparator + 1);
-        int end = 0;
-        while (end < tag.length() && Character.isDigit(tag.charAt(end))) {
-            end++;
-        }
-        if (end == 0) {
-            return -1;
-        }
-        return Integer.parseInt(tag.substring(0, end));
+        return RdsEngineRuntime.dataPath(engine, image);
     }
 
     private void initializeEngine(String containerName, String containerId, DatabaseEngine engine, String masterUsername) {
@@ -378,15 +345,7 @@ public class RdsContainerManager {
     }
 
     static String postgresIamRoleInitSql() {
-        return """
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rds_iam') THEN
-                        CREATE ROLE rds_iam;
-                    END IF;
-                END
-                $$;
-                """;
+        return RdsEngineRuntime.postgresIamRoleInitSql();
     }
 
     private void initializePostgresIamRole(String containerName, String containerId, String masterUsername) {
@@ -531,43 +490,10 @@ public class RdsContainerManager {
 
     private List<String> buildEnvVars(DatabaseEngine engine, String masterUsername,
                                       String masterPassword, String dbName) {
-        String effectiveUser = (masterUsername != null && !masterUsername.isBlank()) ? masterUsername : "postgres";
-        String effectiveDb = (dbName != null && !dbName.isBlank()) ? dbName : effectiveUser;
-
-        List<String> envs = new ArrayList<>();
-        switch (engine) {
-            case POSTGRES -> {
-                envs.add("POSTGRES_USER=" + effectiveUser);
-                envs.add("POSTGRES_PASSWORD=" + masterPassword);
-                envs.add("POSTGRES_DB=" + effectiveDb);
-                envs.add("POSTGRES_HOST_AUTH_METHOD=md5");
-            }
-            case MYSQL -> {
-                envs.add("MYSQL_ROOT_PASSWORD=" + masterPassword);
-                if (!"root".equals(effectiveUser)) {
-                    envs.add("MYSQL_USER=" + effectiveUser);
-                    envs.add("MYSQL_PASSWORD=" + masterPassword);
-                }
-                envs.add("MYSQL_DATABASE=" + effectiveDb);
-            }
-            case MARIADB -> {
-                envs.add("MARIADB_ROOT_PASSWORD=" + masterPassword);
-                if (!"root".equals(effectiveUser)) {
-                    envs.add("MARIADB_USER=" + effectiveUser);
-                    envs.add("MARIADB_PASSWORD=" + masterPassword);
-                }
-                envs.add("MARIADB_DATABASE=" + effectiveDb);
-            }
-        }
-        return envs;
+        return RdsEngineRuntime.environment(engine, masterUsername, masterPassword, dbName);
     }
 
     private List<String> buildContainerCmd(DatabaseEngine engine) {
-        // Configure MySQL to use mysql_native_password so the proxy can authenticate
-        // without needing caching_sha2_password RSA key exchange
-        return switch (engine) {
-            case MYSQL -> List.of("--default-authentication-plugin=mysql_native_password");
-            case POSTGRES, MARIADB -> List.of();
-        };
+        return RdsEngineRuntime.command(engine);
     }
 }

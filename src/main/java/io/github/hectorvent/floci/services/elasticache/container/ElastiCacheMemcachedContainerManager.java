@@ -11,6 +11,7 @@ import io.github.hectorvent.floci.core.common.docker.ContainerLogStreamer;
 import io.github.hectorvent.floci.core.common.docker.ContainerSpec;
 import io.github.hectorvent.floci.core.common.docker.ContainerStorageHelper;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -32,7 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * In Docker mode, uses the container's internal network IP directly.
  */
 @ApplicationScoped
-public class ElastiCacheMemcachedContainerManager {
+@Typed(ElastiCacheMemcachedContainerManager.class)
+public class ElastiCacheMemcachedContainerManager implements ElastiCacheMemcachedRuntime {
 
     private static final Logger LOG = Logger.getLogger(ElastiCacheMemcachedContainerManager.class);
     private static final int BACKEND_PORT = 11211;
@@ -164,6 +166,11 @@ public class ElastiCacheMemcachedContainerManager {
         }
         activeContainers.remove(handle.getGroupId());
         lifecycleManager.stopAndRemove(handle.getContainerId(), handle.getLogStream());
+    }
+
+    @Override
+    public void removeStorage(String clusterId) {
+        // Memcached has no persistent storage.
     }
 
     public void stopAll() {

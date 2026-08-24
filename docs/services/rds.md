@@ -63,6 +63,7 @@ RDS Data API (`rds-data`) is documented separately because it uses REST JSON rou
 | Variable | Default | Description |
 |---|---|---|
 | `FLOCI_SERVICES_RDS_ENABLED` | `true` | Enable or disable the service |
+| `FLOCI_SERVICES_RDS_EXECUTOR` | `docker` | Use `docker` or `kubernetes` for database workloads |
 | `FLOCI_SERVICES_RDS_MOCK` | `false` | `true` = metadata only (no Docker container or auth proxy) |
 | `FLOCI_SERVICES_RDS_PROXY_BASE_PORT` | `7001` | First host port in the RDS proxy range |
 | `FLOCI_SERVICES_RDS_PROXY_MAX_PORT` | `7099` | Last host port in the RDS proxy range |
@@ -70,6 +71,18 @@ RDS Data API (`rds-data`) is documented separately because it uses REST JSON rou
 | `FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE` | `postgres:16-alpine` | Docker image for PostgreSQL instances |
 | `FLOCI_SERVICES_RDS_DEFAULT_MYSQL_IMAGE` | `mysql:8.0` | Docker image for MySQL instances |
 | `FLOCI_SERVICES_RDS_DEFAULT_MARIADB_IMAGE` | `mariadb:11` | Docker image for MariaDB instances |
+
+### Kubernetes executor
+
+Set `FLOCI_SERVICES_RDS_EXECUTOR=kubernetes` to run each instance or cluster
+as a single-replica StatefulSet with a headless Service and a resource-specific
+PVC. The PVC is mounted at the engine data path using `subPath=data` and is
+retained across Floci and pod restarts. An explicit stop removes the workload
+but retains storage; deleting the RDS resource removes the PVC. During a Floci
+shutdown the workload is left running and adopted on the next startup.
+
+See the [Kubernetes configuration guide](../configuration/kubernetes.md) for
+shared settings and deployment manifests.
 
 ### Docker Compose
 

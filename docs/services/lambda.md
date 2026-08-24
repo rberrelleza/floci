@@ -269,7 +269,8 @@ environment as a Kubernetes pod instead of a Docker container. This is designed
 for CI/CD clusters where privileged containers and `docker.sock` access are not
 allowed. Floci talks to the cluster through the standard Kubernetes API: when
 running inside the cluster it uses its ServiceAccount, and when running outside
-it uses your local kubeconfig.
+it uses your local kubeconfig. The shared namespace, image-pull, and RBAC
+guidance is covered in the [Kubernetes configuration guide](../configuration/kubernetes.md).
 
 How an invocation works:
 

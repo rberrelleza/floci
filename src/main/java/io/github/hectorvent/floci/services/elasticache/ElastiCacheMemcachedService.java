@@ -6,7 +6,7 @@ import io.github.hectorvent.floci.core.common.AwsException;
 import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerHandle;
-import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedContainerManager;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheMemcachedRuntime;
 import io.github.hectorvent.floci.services.elasticache.model.CacheCluster;
 import io.github.hectorvent.floci.services.elasticache.model.CacheClusterStatus;
 import io.github.hectorvent.floci.services.elasticache.model.Endpoint;
@@ -27,17 +27,37 @@ public class ElastiCacheMemcachedService {
     private static final String ENGINE_VERSION = "1.6.22";
 
     private final StorageBackend<String, CacheCluster> clusters;
-    private final ElastiCacheMemcachedContainerManager containerManager;
+    private final ElastiCacheMemcachedRuntime containerManager;
     private final EmulatorConfig config;
 
     @Inject
-    public ElastiCacheMemcachedService(ElastiCacheMemcachedContainerManager containerManager,
+    public ElastiCacheMemcachedService(ElastiCacheMemcachedRuntime containerManager,
                                        StorageFactory storageFactory,
                                        EmulatorConfig config) {
         this.containerManager = containerManager;
         this.config = config;
         this.clusters = storageFactory.create("elasticache", "elasticache-cache-clusters.json",
                 new TypeReference<Map<String, CacheCluster>>() {});
+    }
+
+    public void restorePersistedRuntime() {
+        if (!"kubernetes".equalsIgnoreCase(config.services().elasticache().executor())) {
+            return;
+        }
+        for (CacheCluster cluster : clusters.scan(key -> true)) {
+            try {
+                var handle = containerManager.start(
+                        cluster.getCacheClusterId(),
+                        config.services().elasticache().defaultMemcachedImage());
+                cluster.setContainerId(handle.getContainerId());
+                cluster.setContainerHost(handle.getHost());
+                cluster.setContainerPort(handle.getPort());
+                clusters.put(cluster.getCacheClusterId(), cluster);
+            } catch (RuntimeException exception) {
+                LOG.warnv(exception, "Failed to restore Memcached cluster {0}",
+                        cluster.getCacheClusterId());
+            }
+        }
     }
 
     public CacheCluster createCacheCluster(String clusterId) {
@@ -93,6 +113,7 @@ public class ElastiCacheMemcachedService {
                     cluster.getContainerId(), clusterId,
                     cluster.getContainerHost(), cluster.getContainerPort()));
         }
+        containerManager.removeStorage(clusterId);
 
         clusters.delete(clusterId);
         LOG.infov("Memcached cluster {0} deleted", clusterId);

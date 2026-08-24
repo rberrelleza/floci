@@ -11,6 +11,7 @@ import io.github.hectorvent.floci.core.common.docker.ContainerLogStreamer;
 import io.github.hectorvent.floci.core.common.docker.ContainerSpec;
 import io.github.hectorvent.floci.core.common.docker.ContainerStorageHelper;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -32,7 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * In Docker mode, uses the container's internal network IP directly.
  */
 @ApplicationScoped
-public class ElastiCacheContainerManager {
+@Typed(ElastiCacheContainerManager.class)
+public class ElastiCacheContainerManager implements ElastiCacheContainerRuntime {
 
     private static final Logger LOG = Logger.getLogger(ElastiCacheContainerManager.class);
     private static final int BACKEND_PORT = 6379;
@@ -202,6 +204,11 @@ public class ElastiCacheContainerManager {
             return;
         }
         lifecycleManager.removeIfExists(containerName(groupId));
+    }
+
+    @Override
+    public void removeStorage(String groupId) {
+        // The Docker Valkey backend historically has no persistent volume.
     }
 
     private String containerName(String groupId) {

@@ -69,6 +69,8 @@ public interface EmulatorConfig {
 
     DockerConfig docker();
 
+    KubernetesConfig kubernetes();
+
     InitHooksConfig initHooks();
 
     TlsConfig tls();
@@ -99,6 +101,54 @@ public interface EmulatorConfig {
          */
         @WithDefault("true")
         boolean rejectUnknownServiceScope();
+    }
+
+    interface KubernetesConfig {
+        /**
+         * Namespace for Floci-managed Kubernetes workloads. When unset, the namespace from
+         * the pod's service-account mount is used, falling back to {@code default}.
+         *
+         * Env var: FLOCI_KUBERNETES_NAMESPACE
+         */
+        Optional<String> namespace();
+
+        /**
+         * Storage class used by managed workload PVCs. When unset, the cluster default applies.
+         *
+         * Env var: FLOCI_KUBERNETES_STORAGE_CLASS
+         */
+        Optional<String> storageClass();
+
+        /**
+         * Default PVC size for a workload whose resource does not specify one.
+         *
+         * Env var: FLOCI_KUBERNETES_DEFAULT_STORAGE_SIZE
+         */
+        @WithDefault("5Gi")
+        String defaultStorageSize();
+
+        /**
+         * Extra labels applied to every managed Kubernetes object as {@code key=value} entries.
+         *
+         * Env var: FLOCI_KUBERNETES_LABELS (comma-separated)
+         */
+        Optional<List<String>> labels();
+
+        /**
+         * Image pull policy for managed workload containers.
+         *
+         * Env var: FLOCI_KUBERNETES_IMAGE_PULL_POLICY
+         */
+        @WithDefault("IfNotPresent")
+        String imagePullPolicy();
+
+        /**
+         * Maximum time to wait for a managed workload pod to become Ready.
+         *
+         * Env var: FLOCI_KUBERNETES_STARTUP_TIMEOUT_SECONDS
+         */
+        @WithDefault("300")
+        int startupTimeoutSeconds();
     }
 
     interface DnsConfig {
@@ -908,6 +958,10 @@ public interface EmulatorConfig {
         @WithDefault("true")
         boolean enabled();
 
+        /** Execution backend: {@code docker} (default) or {@code kubernetes}. */
+        @WithDefault("docker")
+        String executor();
+
         @WithDefault("6379")
         int proxyBasePort();
 
@@ -951,6 +1005,10 @@ public interface EmulatorConfig {
 
         @WithDefault("true")
         boolean enabled();
+
+        /** Execution backend: {@code docker} (default) or {@code kubernetes}. */
+        @WithDefault("docker")
+        String executor();
 
         /** When true, DB clusters and instances are created instantly without a real Docker
          *  container or auth proxy (API/metadata only). Useful for CI and environments without
@@ -1267,6 +1325,10 @@ public interface EmulatorConfig {
     interface OpenSearchServiceConfig {
         @WithDefault("true")
         boolean enabled();
+
+        /** Execution backend: {@code docker} (default) or {@code kubernetes}. */
+        @WithDefault("docker")
+        String executor();
 
         /** When true, domains are simulated in-memory without real Docker containers. */
         @WithDefault("false")

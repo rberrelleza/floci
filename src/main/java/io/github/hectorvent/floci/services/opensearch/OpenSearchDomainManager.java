@@ -11,6 +11,7 @@ import io.github.hectorvent.floci.core.common.docker.ContainerStorageHelper;
 import io.github.hectorvent.floci.core.common.docker.PortAllocator;
 import io.github.hectorvent.floci.services.opensearch.model.Domain;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -23,7 +24,8 @@ import java.nio.file.Path;
  * Not used when {@code floci.services.opensearch.mock=true}.
  */
 @ApplicationScoped
-public class OpenSearchDomainManager {
+@Typed(OpenSearchDomainManager.class)
+public class OpenSearchDomainManager implements OpenSearchRuntime {
 
     private static final Logger LOG = Logger.getLogger(OpenSearchDomainManager.class);
     private static final int OPENSEARCH_PORT = 9200;
@@ -144,6 +146,12 @@ public class OpenSearchDomainManager {
     public void removeDomainStorage(Domain domain) {
         ContainerStorageHelper.removeStorage(config, lifecycleManager,
                 "opensearch", domain.getVolumeId(), domain.getDomainName());
+    }
+
+    @Override
+    public void stopAll() {
+        // OpenSearchService stops Docker domains individually to preserve the existing
+        // keep-running-on-shutdown setting.
     }
 
     private String resolveImage(String engineVersion) {
