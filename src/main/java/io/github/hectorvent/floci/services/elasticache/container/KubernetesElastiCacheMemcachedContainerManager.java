@@ -49,6 +49,7 @@ public class KubernetesElastiCacheMemcachedContainerManager implements ElastiCac
         var spec = KubernetesWorkloadSpec.builder(workloadName, "elasticache", clusterId, image)
                 .withPort(BACKEND_PORT)
                 .build();
+        var storageExisted = workloadLauncher.hasPersistentVolumeClaim(workloadName);
         try {
             workloadLauncher.launch(spec);
             var handle = new ElastiCacheContainerHandle(workloadName, clusterId, workloadName, BACKEND_PORT);
@@ -57,7 +58,7 @@ public class KubernetesElastiCacheMemcachedContainerManager implements ElastiCac
             return handle;
         } catch (RuntimeException | Error failure) {
             try {
-                workloadLauncher.delete(workloadName, true);
+                workloadLauncher.delete(workloadName, !storageExisted);
             } catch (RuntimeException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }

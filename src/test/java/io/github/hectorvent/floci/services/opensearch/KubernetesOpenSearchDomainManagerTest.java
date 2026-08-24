@@ -61,6 +61,7 @@ class KubernetesOpenSearchDomainManagerTest {
     @Test
     void failedCreationDeletesWorkloadAndStorage() {
         var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
         when(launcher.launch(
                 org.mockito.ArgumentMatchers.any(KubernetesWorkloadSpec.class),
                 org.mockito.ArgumentMatchers.eq(false)))
@@ -72,6 +73,25 @@ class KubernetesOpenSearchDomainManagerTest {
         assertThrows(IllegalStateException.class, () -> manager.startDomain(domain));
 
         verify(launcher).delete(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(true));
+    }
+
+    @Test
+    void failedAdoptionRetainsExistingStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        when(launcher.launch(
+                org.mockito.ArgumentMatchers.any(KubernetesWorkloadSpec.class),
+                org.mockito.ArgumentMatchers.eq(false)))
+                .thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesOpenSearchDomainManager(
+                launcher, config("opensearchproject/opensearch:2.19.5"));
+        var domain = domain("domain", "OpenSearch_2.11", "volume-id");
+
+        assertThrows(IllegalStateException.class, () -> manager.startDomain(domain));
+
+        verify(launcher).delete(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(false));
+        verify(launcher, org.mockito.Mockito.never()).delete(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(true));
     }
 
     @Test

@@ -76,6 +76,8 @@ class KubernetesRdsContainerManagerTest {
     @Test
     void failedCreationDeletesWorkloadAndStorage() {
         var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim(
+                KubernetesWorkloadLauncher.sanitizeName("docker-volume"))).thenReturn(false);
         when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
         var manager = new KubernetesRdsContainerManager(launcher);
 
@@ -84,6 +86,22 @@ class KubernetesRdsContainerManagerTest {
                 DatabaseEngine.MYSQL, "mysql:8", "root", "password", "db"));
 
         verify(launcher).delete(KubernetesWorkloadLauncher.sanitizeName("docker-volume"), true);
+    }
+
+    @Test
+    void failedAdoptionRetainsExistingStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        var workloadName = KubernetesWorkloadLauncher.sanitizeName("docker-volume");
+        when(launcher.hasPersistentVolumeClaim(workloadName)).thenReturn(true);
+        when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesRdsContainerManager(launcher);
+
+        assertThrows(IllegalStateException.class, () -> manager.start(
+                "runtime", "db", "storage-id", "docker-volume",
+                DatabaseEngine.MYSQL, "mysql:8", "root", "password", "db"));
+
+        verify(launcher).delete(workloadName, false);
+        verify(launcher, org.mockito.Mockito.never()).delete(workloadName, true);
     }
 
     @Test

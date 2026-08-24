@@ -83,6 +83,7 @@ public class KubernetesRdsContainerManager implements RdsContainerRuntime {
                 .build();
 
         LOG.infov("Starting RDS Kubernetes workload for instance {0} engine={1}", instanceId, engine);
+        var storageExisted = workloadLauncher.hasPersistentVolumeClaim(workloadName);
         try {
             workloadLauncher.launch(spec);
             if (engine == DatabaseEngine.POSTGRES && iamEnabled) {
@@ -90,7 +91,7 @@ public class KubernetesRdsContainerManager implements RdsContainerRuntime {
             }
         } catch (RuntimeException | Error exception) {
             try {
-                workloadLauncher.delete(workloadName, true);
+                workloadLauncher.delete(workloadName, !storageExisted);
             } catch (RuntimeException | Error cleanupFailure) {
                 exception.addSuppressed(cleanupFailure);
             }

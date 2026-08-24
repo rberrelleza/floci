@@ -62,6 +62,7 @@ public class KubernetesOpenSearchDomainManager implements OpenSearchRuntime {
                 builder.withEnv("OPENSEARCH_INITIAL_ADMIN_PASSWORD", "FlociAdmin1!");
             }
         }
+        var storageExisted = workloadLauncher.hasPersistentVolumeClaim(workloadName);
         try {
             workloadLauncher.launch(builder.build(), false);
             domain.setContainerId(workloadName);
@@ -69,7 +70,7 @@ public class KubernetesOpenSearchDomainManager implements OpenSearchRuntime {
             activeWorkloads.put(domain.getDomainName(), workloadName);
         } catch (RuntimeException | Error failure) {
             try {
-                workloadLauncher.delete(workloadName, true);
+                workloadLauncher.delete(workloadName, !storageExisted);
             } catch (RuntimeException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }

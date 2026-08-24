@@ -55,6 +55,7 @@ public class KubernetesElastiCacheContainerManager implements ElastiCacheContain
                 .withStorage("", "/data", "data")
                 .withFsGroup(999)
                 .build();
+        var storageExisted = workloadLauncher.hasPersistentVolumeClaim(workloadName);
         try {
             workloadLauncher.launch(spec);
             var handle = new ElastiCacheContainerHandle(workloadName, groupId, workloadName, BACKEND_PORT);
@@ -63,7 +64,7 @@ public class KubernetesElastiCacheContainerManager implements ElastiCacheContain
             return handle;
         } catch (RuntimeException | Error failure) {
             try {
-                workloadLauncher.delete(workloadName, true);
+                workloadLauncher.delete(workloadName, !storageExisted);
             } catch (RuntimeException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }

@@ -107,10 +107,16 @@ public class KubernetesWorkloadLauncher {
         deleteAndAwait(client.services().inNamespace(namespace).withName(name)::delete,
                 () -> client.services().inNamespace(namespace).withName(name).get());
         if (deleteStorage) {
-            var pvc = DATA_VOLUME + "-" + name + "-0";
+            var pvc = persistentVolumeClaimName(name);
             deleteAndAwait(client.persistentVolumeClaims().inNamespace(namespace).withName(pvc)::delete,
                     () -> client.persistentVolumeClaims().inNamespace(namespace).withName(pvc).get());
         }
+    }
+
+    public boolean hasPersistentVolumeClaim(String workloadName) {
+        var namespace = namespaceResolver.resolve();
+        var name = persistentVolumeClaimName(sanitizeName(workloadName));
+        return client.persistentVolumeClaims().inNamespace(namespace).withName(name).get() != null;
     }
 
     public boolean isAlive(String workloadName) {
@@ -140,6 +146,10 @@ public class KubernetesWorkloadLauncher {
 
     public LogWatch logs(String workloadName) {
         return logs(workloadName, WORKLOAD_CONTAINER);
+    }
+
+    private static String persistentVolumeClaimName(String workloadName) {
+        return DATA_VOLUME + "-" + workloadName + "-0";
     }
 
     public static String workloadName(String awsService, String resourceId) {

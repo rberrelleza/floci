@@ -52,6 +52,7 @@ class KubernetesElastiCacheContainerManagerTest {
     @Test
     void failedCreationDeletesWorkloadAndStorage() {
         var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim("floci-valkey-group")).thenReturn(false);
         when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
         var manager = new KubernetesElastiCacheContainerManager(
                 launcher, mock(ElastiCacheBackendProbe.class));
@@ -59,6 +60,20 @@ class KubernetesElastiCacheContainerManagerTest {
         assertThrows(IllegalStateException.class, () -> manager.start("group", "valkey/valkey:8"));
 
         verify(launcher).delete("floci-valkey-group", true);
+    }
+
+    @Test
+    void failedAdoptionRetainsExistingStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim("floci-valkey-group")).thenReturn(true);
+        when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesElastiCacheContainerManager(
+                launcher, mock(ElastiCacheBackendProbe.class));
+
+        assertThrows(IllegalStateException.class, () -> manager.start("group", "valkey/valkey:8"));
+
+        verify(launcher).delete("floci-valkey-group", false);
+        verify(launcher, org.mockito.Mockito.never()).delete("floci-valkey-group", true);
     }
 
     @Test

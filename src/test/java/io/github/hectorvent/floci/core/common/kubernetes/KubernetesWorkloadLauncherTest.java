@@ -162,6 +162,18 @@ class KubernetesWorkloadLauncherTest {
     }
 
     @Test
+    void reportsWhetherWorkloadPvcExists() {
+        assertThat(launcher.hasPersistentVolumeClaim("floci-rds-resource-1")).isFalse();
+
+        var pvc = new PersistentVolumeClaimBuilder()
+                .withNewMetadata().withName("data-floci-rds-resource-1-0").endMetadata()
+                .build();
+        client.persistentVolumeClaims().inNamespace("default").resource(pvc).create();
+
+        assertThat(launcher.hasPersistentVolumeClaim("floci-rds-resource-1")).isTrue();
+    }
+
+    @Test
     void deleteMissingWorkloadIsNoOp() {
         launcher.delete("does-not-exist", true);
     }

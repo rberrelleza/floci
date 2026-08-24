@@ -45,6 +45,7 @@ class KubernetesElastiCacheMemcachedContainerManagerTest {
     @Test
     void failedCreationDeletesWorkloadWithStorageFlag() {
         var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim("floci-memcached-cluster")).thenReturn(false);
         when(launcher.launch(org.mockito.ArgumentMatchers.any()))
                 .thenThrow(new IllegalStateException("launch failed"));
         var manager = new KubernetesElastiCacheMemcachedContainerManager(
@@ -53,6 +54,21 @@ class KubernetesElastiCacheMemcachedContainerManagerTest {
         assertThrows(IllegalStateException.class, () -> manager.start("cluster", "memcached:1.6"));
 
         verify(launcher).delete("floci-memcached-cluster", true);
+    }
+
+    @Test
+    void failedAdoptionRetainsExistingStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.hasPersistentVolumeClaim("floci-memcached-cluster")).thenReturn(true);
+        when(launcher.launch(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesElastiCacheMemcachedContainerManager(
+                launcher, mock(ElastiCacheBackendProbe.class));
+
+        assertThrows(IllegalStateException.class, () -> manager.start("cluster", "memcached:1.6"));
+
+        verify(launcher).delete("floci-memcached-cluster", false);
+        verify(launcher, org.mockito.Mockito.never()).delete("floci-memcached-cluster", true);
     }
 
     @Test
