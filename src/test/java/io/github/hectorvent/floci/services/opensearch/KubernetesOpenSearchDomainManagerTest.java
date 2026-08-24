@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,6 +55,22 @@ class KubernetesOpenSearchDomainManagerTest {
         manager.removeDomainStorage(domain);
 
         verify(launcher).delete(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(false));
+        verify(launcher).delete(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(true));
+    }
+
+    @Test
+    void failedCreationDeletesWorkloadAndStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.launch(
+                org.mockito.ArgumentMatchers.any(KubernetesWorkloadSpec.class),
+                org.mockito.ArgumentMatchers.eq(false)))
+                .thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesOpenSearchDomainManager(
+                launcher, config("opensearchproject/opensearch:2.19.5"));
+        var domain = domain("domain", "OpenSearch_2.11", "volume-id");
+
+        assertThrows(IllegalStateException.class, () -> manager.startDomain(domain));
+
         verify(launcher).delete(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(true));
     }
 

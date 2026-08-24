@@ -57,7 +57,7 @@ public class KubernetesElastiCacheMemcachedContainerManager implements ElastiCac
             return handle;
         } catch (RuntimeException | Error failure) {
             try {
-                workloadLauncher.delete(workloadName, false);
+                workloadLauncher.delete(workloadName, true);
             } catch (RuntimeException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }

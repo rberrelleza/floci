@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -70,6 +71,19 @@ class KubernetesRdsContainerManagerTest {
         var workloadName = KubernetesWorkloadLauncher.sanitizeName("docker-volume");
         verify(launcher).delete(workloadName, false);
         verify(launcher).delete(workloadName, true);
+    }
+
+    @Test
+    void failedCreationDeletesWorkloadAndStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesRdsContainerManager(launcher);
+
+        assertThrows(IllegalStateException.class, () -> manager.start(
+                "runtime", "db", "storage-id", "docker-volume",
+                DatabaseEngine.MYSQL, "mysql:8", "root", "password", "db"));
+
+        verify(launcher).delete(KubernetesWorkloadLauncher.sanitizeName("docker-volume"), true);
     }
 
     @Test

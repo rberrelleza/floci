@@ -69,7 +69,7 @@ public class KubernetesOpenSearchDomainManager implements OpenSearchRuntime {
             activeWorkloads.put(domain.getDomainName(), workloadName);
         } catch (RuntimeException | Error failure) {
             try {
-                workloadLauncher.delete(workloadName, false);
+                workloadLauncher.delete(workloadName, true);
             } catch (RuntimeException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }

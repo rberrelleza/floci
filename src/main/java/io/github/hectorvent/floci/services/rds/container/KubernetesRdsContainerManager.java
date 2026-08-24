@@ -90,7 +90,7 @@ public class KubernetesRdsContainerManager implements RdsContainerRuntime {
             }
         } catch (RuntimeException | Error exception) {
             try {
-                workloadLauncher.delete(workloadName, false);
+                workloadLauncher.delete(workloadName, true);
             } catch (RuntimeException | Error cleanupFailure) {
                 exception.addSuppressed(cleanupFailure);
             }

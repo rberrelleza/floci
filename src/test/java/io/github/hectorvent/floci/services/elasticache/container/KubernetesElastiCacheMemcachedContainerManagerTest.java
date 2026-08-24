@@ -5,8 +5,10 @@ import io.github.hectorvent.floci.core.common.kubernetes.KubernetesWorkloadSpec;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class KubernetesElastiCacheMemcachedContainerManagerTest {
 
@@ -38,6 +40,19 @@ class KubernetesElastiCacheMemcachedContainerManagerTest {
 
         verify(launcher, org.mockito.Mockito.never()).delete(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void failedCreationDeletesWorkloadWithStorageFlag() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.launch(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesElastiCacheMemcachedContainerManager(
+                launcher, mock(ElastiCacheBackendProbe.class));
+
+        assertThrows(IllegalStateException.class, () -> manager.start("cluster", "memcached:1.6"));
+
+        verify(launcher).delete("floci-memcached-cluster", true);
     }
 
     @Test

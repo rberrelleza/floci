@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class KubernetesElastiCacheContainerManagerTest {
 
@@ -45,6 +47,18 @@ class KubernetesElastiCacheContainerManagerTest {
         manager.stopAll();
 
         verify(launcher, org.mockito.Mockito.never()).delete(any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void failedCreationDeletesWorkloadAndStorage() {
+        var launcher = mock(KubernetesWorkloadLauncher.class);
+        when(launcher.launch(any())).thenThrow(new IllegalStateException("launch failed"));
+        var manager = new KubernetesElastiCacheContainerManager(
+                launcher, mock(ElastiCacheBackendProbe.class));
+
+        assertThrows(IllegalStateException.class, () -> manager.start("group", "valkey/valkey:8"));
+
+        verify(launcher).delete("floci-valkey-group", true);
     }
 
     @Test
